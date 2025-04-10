@@ -1,0 +1,102 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "environment": {
+            "type": "string",
+            "allowedValues": ["dev", "prod"],
+            "defaultValue": "dev",
+            "metadata": {
+                "description": "Environment type"
+            }
+        },
+        "location": {
+            "type": "string",
+            "defaultValue": "[resourceGroup().location]",
+            "metadata": {
+                "description": "Location for all resources."
+            }
+        }
+    },
+    "variables": {
+        "namingPrefix": "[concat('fioneer-', parameters('environment'))]",
+        "vnetName": "[concat(variables('namingPrefix'), '-vnet')]",
+        "appServicePlanName": "[concat(variables('namingPrefix'), '-asp')]",
+        "appServiceName": "[concat(variables('namingPrefix'), '-app')]",
+        "storageAccountName": "[concat(replace(variables('namingPrefix'), '-', ''), 'st')]"
+    },
+    "resources": [
+        {
+            "type": "Microsoft.Resources/deployments",
+            "apiVersion": "2020-10-01",
+            "name": "networkDeployment",
+            "properties": {
+                "mode": "Incremental",
+                "templateLink": {
+                    "uri": "https://raw.githubusercontent.com/sarangvishnu/azuredeploy/main/templates/network.json",
+                    "contentVersion": "1.0.0.0"
+                },
+                "parameters": {
+                    "vnetName": {
+                        "value": "[variables('vnetName')]"
+                    },
+                    "location": {
+                        "value": "[parameters('location')]"
+                    },
+                    "environment": {
+                        "value": "[parameters('environment')]"
+                    }
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Resources/deployments",
+            "apiVersion": "2020-10-01",
+            "name": "appServiceDeployment",
+            "dependsOn": [
+                "[resourceId('Microsoft.Resources/deployments', 'networkDeployment')]"
+            ],
+            "properties": {
+                "mode": "Incremental",
+                "templateLink": {
+                    "uri": "https://raw.githubusercontent.com/sarangvishnu/azuredeploy/main/templates/appService.json",
+                    "contentVersion": "1.0.0.0"
+                },
+                "parameters": {
+                    "appServicePlanName": {
+                        "value": "[variables('appServicePlanName')]"
+                    },
+                    "appServiceName": {
+                        "value": "[variables('appServiceName')]"
+                    },
+                    "location": {
+                        "value": "[parameters('location')]"
+                    },
+                    "vnetName": {
+                        "value": "[variables('vnetName')]"
+                    },
+                    "environment": {
+                        "value": "[parameters('environment')]"
+                    },
+                    "vnetResourceGroup": {
+                        "value": "[resourceGroup().name]"
+                    }
+                }
+            }
+        }
+    ],
+    "outputs": {
+        "appServiceName": {
+            "type": "string",
+            "value": "[variables('appServiceName')]"
+        },
+        "appServiceUrl": {
+            "type": "string",
+            "value": "[concat('https://', variables('appServiceName'), '.azurewebsites.net')]"
+        },
+        "vnetName": {
+            "type": "string",
+            "value": "[variables('vnetName')]"
+        }
+    }
+}
